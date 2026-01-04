@@ -20,11 +20,11 @@ return new class extends Migration
             $table->string('Password');
             $table->string('Provider')->nullable();
             $table->string('ProviderId')->nullable();
-            $table->tinyInteger('Role');
+            $table->string('Role', 2);
             $table->timestamp('EmailVerifyAt')->nullable();
 
             $table->foreign('Role')
-                ->references('Role')
+                ->references('IdRole')
                 ->on('roles')
                 ->onDelete('cascade');
 

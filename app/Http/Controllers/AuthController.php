@@ -6,6 +6,7 @@ use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
@@ -13,7 +14,21 @@ class AuthController extends Controller
     public function register(RegisterRequest $request)
     {
         $userInput = $request->validated();
-        $userInput ['password'] = Hash::make($userInput['password']);
+
+        $lastUser = User::orderBy('IdUser', 'desc')->first();
+
+        if ($lastUser) {
+            $number = intval(substr($lastUser->IdUser, 1)) + 1;
+        } else {
+            $number = 1;
+        }
+
+        $newId = str_pad($number, 5, '0', STR_PAD_LEFT);
+
+        $userInput['IdUser'] = $newId;
+        $userInput['Role'] = $request->Role;
+        $userInput ['Password'] = Hash::make($userInput['Password']);
+
         $user = User::create($userInput);
 
         return response()->json([
@@ -50,8 +65,17 @@ class AuthController extends Controller
         ], 200);
     }
 
-    // public function getProfile()
-    // {
-    //     return new UserResource(auth()->user());
-    // }
+    public function getProfile(Request $request)
+    {
+        return new UserResource($request->user());
+    }
+
+    public function logout(Request $request)
+    {
+        $request->user()->currentAccessToken()->delete();
+
+        return response()->json([
+            'message' => 'Logout successful',
+        ], 200);
+    }
 }

@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
-use App\Http\Requests\BaseRequest;
+use App\Http\Requests\Task\BaseRequest;
 
 class RegisterRequest extends BaseRequest
 {
@@ -11,13 +11,12 @@ class RegisterRequest extends BaseRequest
      *
      * @return array
      */
-
-    public function rule()
+    public function rules()
     {
         return [
             'UserName' => 'required|string|max:255',
-            'Email' => 'required|string|email|max:255|unique:user,email',
-            'Password' => 'required|string|max:255|comfermed',
+            'Email' => 'required|string|email|max:255|unique:users,Email',
+            'Password' => 'required|string|max:255|confirmed',
         ];
     }
 }

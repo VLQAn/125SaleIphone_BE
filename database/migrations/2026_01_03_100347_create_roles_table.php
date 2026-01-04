@@ -17,7 +17,6 @@ return new class extends Migration
             $table->engine = 'InnoDB';
 
             $table->string('IdRole', 2)->primary();
-            $table->tinyInteger('Role');
             $table->string('Type', 50);
             
             $table->timestamps();

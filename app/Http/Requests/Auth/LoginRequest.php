@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
-use App\Http\Requests\BaseRequest;
+use App\Http\Requests\Task\BaseRequest;
 
 class LoginRequest extends BaseRequest
 {
@@ -12,7 +12,7 @@ class LoginRequest extends BaseRequest
      * @return array
      */
 
-    public function rule()
+    public function rules()
     {
         return [
             'Email' => 'required|string|email|max:255',
