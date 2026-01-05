@@ -11,20 +11,20 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('payments', function (Blueprint $table) {
-            $table->engine = 'InnoDB';
+        Schema::create('order_addresses', function (Blueprint $table) {
+            $table->engine('InnoDB');
 
-            $table->char('IdPayment', 5)->primary();
+            $table->char('IdOrderAdd', 5)->primary();
             $table->char('IdOrder', 5);
-            $table->string('StripePaymentId');
-            $table->tinyInteger('Status');
-            $table->integer('Amount');
+            $table->string('FullName', 255)->nullable();
+            $table->char('Phone', 10)->nullable();
+            $table->string('Address', 255)->nullable();
 
             $table->foreign('IdOrder')
                 ->references('IdOrder')
-                ->on('orders')
+                ->on('Orders')
                 ->onDelete('cascade');
-                
+
             $table->timestamps();
         });
     }
@@ -34,6 +34,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('payments');
+        Schema::dropIfExists('order_addresses');
     }
 };
