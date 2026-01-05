@@ -16,7 +16,7 @@ return new class extends Migration
         Schema::create('roles', function (Blueprint $table) {
             $table->engine = 'InnoDB';
 
-            $table->string('IdRole', 2)->primary();
+            $table->char('IdRole', 2)->primary();
             $table->string('Type', 50);
             
             $table->timestamps();

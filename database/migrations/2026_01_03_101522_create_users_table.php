@@ -18,9 +18,11 @@ return new class extends Migration
             $table->string('UserName');
             $table->string('Email')->unique();
             $table->string('Password');
+            $table->string('Phone')->nullable();
+            $table->string('Address')->nullable();
             $table->string('Provider')->nullable();
             $table->string('ProviderId')->nullable();
-            $table->string('Role', 2);
+            $table->char('Role', 2);
             $table->timestamp('EmailVerifyAt')->nullable();
 
             $table->foreign('Role')

@@ -17,9 +17,7 @@ return new class extends Migration
             $table->char('IdProduct', 3)->primary();
             $table->char('IdCategory', 2);
             $table->string('NameProduct', 100);
-            $table->integer('Price');
             $table->string('Decription', 255);
-            $table->tinyInteger('Stock');
 
             $table->timestamps();
 
