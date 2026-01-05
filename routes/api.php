@@ -14,3 +14,7 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
+
+Route::post('/payment/checkout', [\App\Http\Controllers\PaymentController::class, 'checkout']);
+Route::any('/payment/callback', [\App\Http\Controllers\PaymentController::class, 'callback']);
+Route::post('/payment/send-mail', [\App\Http\Controllers\PaymentController::class, 'sendMail']);
