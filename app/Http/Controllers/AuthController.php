@@ -26,7 +26,7 @@ class AuthController extends Controller
         $newId = str_pad($number, 5, '0', STR_PAD_LEFT);
 
         $userInput['IdUser'] = $newId;
-        $userInput['Role'] = $request->Role;
+        $userInput['Role'] = '02';
         $userInput ['Password'] = Hash::make($userInput['Password']);
 
         $user = User::create($userInput);
