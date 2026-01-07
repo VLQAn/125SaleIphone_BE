@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
+use App\Http\Requests\Auth\VerifyCodeRequest;
 use App\Http\Resources\UserResource;
 use App\Mail\SendCodeToVerifyEmail;
 use App\Models\User;
@@ -48,6 +49,41 @@ class AuthController extends Controller
         ], 201);
     }
 
+    public function verifyEmail(VerifyCodeRequest $request)
+    {
+        $userInput = $request->validated();
+
+        $user = User::where('Email', $userInput['Email'])->first();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'User not found',
+            ], 404);
+        }
+
+        if ($user->Code !== $userInput['Code']) {
+            return response()->json([
+                'message' => 'Invalid Code',
+            ], 400);
+        }
+
+        if ($user->CodeExpiresAt < now()) {
+            return response()->json([
+                'message' => 'Code expired',
+            ], 400);
+        }
+
+        $user->IsVerified = true;
+        $user->Code = null;
+        $user->CodeExpiresAt = null;
+        $user->save();
+
+        return response()->json([
+            'messege' => 'Email verified successfully',
+            'user' => new UserResource($user),
+        ], 200);
+    }
+
     public function login(LoginRequest $request)
     {
         $userInput = $request->validated();
@@ -57,6 +93,12 @@ class AuthController extends Controller
             return response()->json([
                 'message' => 'Email or password is incorrect',
             ],401);
+        }
+
+        if (!$user->IsVerified) {
+            return response()->json([
+                'message' => 'Email is not verified',
+            ], 401);
         }
 
         $checkPassword = Hash::check($userInput['Password'], $user->Password);
