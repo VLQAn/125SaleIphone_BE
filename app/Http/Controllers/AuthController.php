@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
+use App\Http\Requests\Auth\ResendCodeRequest;
 use App\Http\Requests\Auth\VerifyCodeRequest;
 use App\Http\Resources\UserResource;
 use App\Mail\SendCodeToVerifyEmail;
@@ -37,7 +38,7 @@ class AuthController extends Controller
         $userInput ['Password'] = Hash::make($userInput['Password']);
 
         $userInput['Code'] = random_int(100000, 999999);
-        $userInput['CodeExpiresAt'] = Carbon::now()->addMinutes(10);
+        $userInput['CodeExpiresAt'] = Carbon::now()->addMinutes(5);
 
         $user = User::create($userInput);
 
@@ -81,6 +82,30 @@ class AuthController extends Controller
         return response()->json([
             'messege' => 'Email verified successfully',
             'user' => new UserResource($user),
+        ], 200);
+    }
+
+    public function resendCode(ResendCodeRequest $request)
+    {
+        $userInput = $request->validated();
+        $user = User::where('Email', $userInput['Email'])->first();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'User not found',
+            ], 404);
+        }
+        
+        $code = random_int(100000, 999999);
+        $expiresAt = Carbon::now()->addMinutes(5);
+        $user->Code = $code;
+        $user->CodeExpiresAt = $expiresAt;
+        $user->save();
+
+        Mail::to($user->Email)->send(new SendCodeToVerifyEmail($user->Code));
+
+        return response()->json([
+            'message' => 'Code resend Successfully',
         ], 200);
     }
 
