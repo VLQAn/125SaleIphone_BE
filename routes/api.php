@@ -43,3 +43,9 @@ Route::controller(\App\Http\Controllers\Api\ProfileController::class)->group(fun
     Route::put('profile', 'update');
     Route::put('profile/change-password', 'changePassword');
 }); 
+
+// Order Routes
+Route::controller(\App\Http\Controllers\Api\DonHangController::class)->group(function () {
+    Route::get('orders', 'index');
+    Route::post('orders/cancel/{id}', 'huyDonHang');
+}); 
