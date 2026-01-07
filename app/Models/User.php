@@ -30,6 +30,9 @@ class User extends Authenticatable
         'ProviderId',
         'Role',
         'EmailVerifyAt',
+        'IsVerified',
+        'Code',
+        'CodeExpiresAt',
     ];
 
     /**
@@ -49,5 +52,6 @@ class User extends Authenticatable
     protected $casts = [
         'EmailVerifyAt' => 'datetime',
         'Password' => 'hashed',
+        'CodeExpiresAt' => 'datetime',
     ];
 }

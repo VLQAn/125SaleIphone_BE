@@ -5,9 +5,15 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Resources\UserResource;
+use App\Mail\SendCodeToVerifyEmail;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Mail;
+
+use function Symfony\Component\Clock\now;
 
 class AuthController extends Controller
 {
@@ -29,7 +35,12 @@ class AuthController extends Controller
         $userInput['Role'] = '02';
         $userInput ['Password'] = Hash::make($userInput['Password']);
 
+        $userInput['Code'] = random_int(100000, 999999);
+        $userInput['CodeExpiresAt'] = Carbon::now()->addMinutes(10);
+
         $user = User::create($userInput);
+
+        Mail::to($user->Email)->send(new SendCodeToVerifyEmail($user->Code));
 
         return response()->json([
             'message' => 'User registered successfully',
