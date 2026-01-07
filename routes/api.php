@@ -36,3 +36,10 @@ Route::controller(\App\Http\Controllers\Api\CartController::class)->group(functi
     Route::put('cart/update', 'updateCart');
     Route::delete('cart/remove/{id}', 'removeFromCart');
 });
+
+// Profile Routes
+Route::controller(\App\Http\Controllers\Api\ProfileController::class)->group(function () {
+    Route::get('profile', 'index');
+    Route::put('profile', 'update');
+    Route::put('profile/change-password', 'changePassword');
+}); 
