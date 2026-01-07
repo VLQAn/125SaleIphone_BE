@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\Api\ProductController;
 
 Route::post('register', [AuthController::class, 'register']);
 Route::post('login', [AuthController::class, 'login']);
@@ -18,3 +19,12 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::post('/payment/checkout', [\App\Http\Controllers\PaymentController::class, 'checkout']);
 Route::any('/payment/callback', [\App\Http\Controllers\PaymentController::class, 'callback']);
 Route::post('/payment/send-mail', [\App\Http\Controllers\PaymentController::class, 'sendMail']);
+
+// Product Routes
+Route::controller(ProductController::class)->group(function () {
+    Route::get('products', 'index');       
+    Route::post('products', 'store');         
+    Route::get('products/{id}', 'show');    
+    Route::put('products/{id}', 'update');    
+    Route::delete('products/{id}', 'delete'); 
+});
