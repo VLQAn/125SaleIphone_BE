@@ -28,3 +28,11 @@ Route::controller(ProductController::class)->group(function () {
     Route::put('products/{id}', 'update');    
     Route::delete('products/{id}', 'delete'); 
 });
+
+// Cart Routes
+Route::controller(\App\Http\Controllers\Api\CartController::class)->group(function () {
+    Route::get('cart', 'index');
+    Route::post('cart/add', 'addToCart');
+    Route::put('cart/update', 'updateCart');
+    Route::delete('cart/remove/{id}', 'removeFromCart');
+});
