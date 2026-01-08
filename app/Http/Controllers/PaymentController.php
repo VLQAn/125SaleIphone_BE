@@ -5,60 +5,72 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\PaymentSuccessMail;
+use App\Models\Order;
+use App\Models\CartItem;
+use Illuminate\Support\Facades\Log;
 
 class PaymentController extends Controller
 {
-    public function checkout(Request $request)
-    {
-        $validated = $request->validate([
-            'amount' => 'required|numeric',
-            'order_id' => 'required',
-            'email' => 'required|email',
-        ]);
-
-        $amount = $validated['amount'];
-        $orderId = $validated['order_id'];
-        $email = $validated['email'];
-
-        // Mock: Create payment URL (pointing to our callback for simulation)
-        // In real app, this would be VNPay/Momo URL
-        $callbackUrl = url('/api/payment/callback?order_id=' . $orderId . '&status=success&email=' . $email);
-
-        return response()->json([
-            'message' => 'Order created successfully',
-            'payment_url' => $callbackUrl
-        ]);
-    }
-
+    /**
+     * Callback xử lý kết quả thanh toán từ payment gateway (Giả lập)
+     */
     public function callback(Request $request)
     {
         $status = $request->input('status');
+        $orderId = $request->input('order_id');
         $email = $request->input('email');
 
-        if ($status == 'success') {
-            // Logic to update order status in Database would be here...
+        if ($status == 'success' && $orderId) {
+            // Tìm đơn hàng theo IdOrder (Primary Key là string)
+            $order = Order::where('IdOrder', $orderId)->first();
 
-            // Send confirmation email
-            if ($email) {
-                try {
-                    Mail::to($email)->send(new PaymentSuccessMail());
-                } catch (\Exception $e) {
-                    return response()->json([
-                        'message' => 'Payment successful but email failed to send',
-                        'error' => $e->getMessage()
-                    ], 200); // Still 200 because payment succeeded
+            if ($order) {
+                // Cập nhật trạng thái đơn hàng thành 0 (Đang xử lý) sau khi thanh toán thành công
+                // Giả sử Status 0 là trạng thái mặc định cho đơn hàng đã thanh toán/xác nhận
+                $order->update(['Status' => 0]);
+
+                // Xóa giỏ hàng của user sau khi thanh toán thành công
+                CartItem::where('IdCart', $order->IdUser)->delete();
+
+                // Gửi email xác nhận
+                if ($email) {
+                    try {
+                        // Lưu ý: Mailable PaymentSuccessMail có thể cần tham số, 
+                        // nhưng ở đây tôi dùng theo cấu trúc hiện tại của dự án
+                        Mail::to($email)->send(new PaymentSuccessMail());
+                    } catch (\Exception $e) {
+                        Log::error('Gửi mail thất bại trong callback: ' . $e->getMessage());
+                    }
                 }
-            }
 
-            return response()->json(['message' => 'Payment successful. Confirmation email sent.']);
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Thanh toán thành công. Giỏ hàng đã được làm mới.',
+                    'order_id' => $orderId
+                ]);
+            }
         }
 
-        return response()->json(['message' => 'Payment failed or cancelled.'], 400);
+        return response()->json([
+            'success' => false,
+            'message' => 'Thanh toán thất bại hoặc đơn hàng không tồn tại.'
+        ], 400);
     }
 
-    // Kept for backward compatibility or testing
+    /**
+     * Endpoint hỗ trợ gửi mail thủ công hoặc test
+     */
     public function sendMail(Request $request)
     {
-        return $this->callback($request->merge(['status' => 'success']));
+        $email = $request->input('email');
+        if ($email) {
+            try {
+                Mail::to($email)->send(new PaymentSuccessMail());
+                return response()->json(['message' => 'Đã gửi email test thành công']);
+            } catch (\Exception $e) {
+                return response()->json(['message' => 'Lỗi: ' . $e->getMessage()], 500);
+            }
+        }
+        return response()->json(['message' => 'Thiếu email'], 400);
     }
 }

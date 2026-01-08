@@ -20,36 +20,41 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-Route::post('/payment/checkout', [\App\Http\Controllers\PaymentController::class, 'checkout']);
+// Payment Callback (Public - for payment gateway callbacks)
 Route::any('/payment/callback', [\App\Http\Controllers\PaymentController::class, 'callback']);
 Route::post('/payment/send-mail', [\App\Http\Controllers\PaymentController::class, 'sendMail']);
 
 // Product Routes
 Route::controller(ProductController::class)->group(function () {
-    Route::get('products', 'index');       
-    Route::post('products', 'store');         
-    Route::get('products/{id}', 'show');    
-    Route::put('products/{id}', 'update');    
-    Route::delete('products/{id}', 'delete'); 
+    Route::get('products', 'index');
+    Route::post('products', 'store');
+    Route::get('products/{id}', 'show');
+    Route::put('products/{id}', 'update');
+    Route::delete('products/{id}', 'delete');
 });
 
-// Cart Routes
-Route::controller(\App\Http\Controllers\Api\CartController::class)->group(function () {
-    Route::get('cart', 'index');
-    Route::post('cart/add', 'addToCart');
-    Route::put('cart/update', 'updateCart');
-    Route::delete('cart/remove/{id}', 'removeFromCart');
+// Protected Routes - Require Authentication
+Route::middleware('auth:sanctum')->group(function () {
+
+    // Checkout & Order Routes
+    Route::post('/payment/checkout', [\App\Http\Controllers\Api\OrderController::class, 'store']);
+    Route::get('orders', [\App\Http\Controllers\Api\OrderController::class, 'index']);
+    Route::post('orders/cancel/{id}', [\App\Http\Controllers\Api\OrderController::class, 'huyDonHang']);
+    Route::get('orders/{id}', [\App\Http\Controllers\Api\OrderController::class, 'chiTiet']);
+
+    // Cart Routes
+    Route::controller(\App\Http\Controllers\Api\CartController::class)->group(function () {
+        Route::get('cart', 'index');
+        Route::post('cart/add', 'addToCart');
+        Route::put('cart/update', 'updateCart');
+        Route::delete('cart/remove/{id}', 'removeFromCart');
+    });
+
+    // Profile Routes
+    Route::controller(\App\Http\Controllers\Api\ProfileController::class)->group(function () {
+        Route::get('profile', 'index');
+        Route::put('profile', 'update');
+        Route::put('profile/change-password', 'changePassword');
+    });
 });
 
-// Profile Routes
-Route::controller(\App\Http\Controllers\Api\ProfileController::class)->group(function () {
-    Route::get('profile', 'index');
-    Route::put('profile', 'update');
-    Route::put('profile/change-password', 'changePassword');
-}); 
-
-// Order Routes
-Route::controller(\App\Http\Controllers\Api\DonHangController::class)->group(function () {
-    Route::get('orders', 'index');
-    Route::post('orders/cancel/{id}', 'huyDonHang');
-}); 
