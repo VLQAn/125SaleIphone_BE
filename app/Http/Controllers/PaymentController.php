@@ -73,4 +73,72 @@ class PaymentController extends Controller
         }
         return response()->json(['message' => 'Thiếu email'], 400);
     }
+
+    public function checkout(Request $request)
+    {
+        // 1. Lưu các thông tin đơn hàng vào DB trước
+        $order = Order::create([
+            'user_id' => $request->user_id,
+            'total_amount' => $request->total_amount,
+            'payment_method' => $request->payment_method,
+            'status' => 'pending',
+            // ... các trường khác
+        ]);
+
+        // 2. Nếu là MoMo, tạo payUrl
+        if ($request->payment_method == 'momo') {
+            return $this->createMomoPayment($order);
+        }
+
+        // Nếu là COD hoặc khác
+        return response()->json([
+            'status' => 'success',
+            'order_id' => $order->id,
+            'message' => 'Đặt hàng thành công!'
+        ]);
+    }
+
+    private function createMomoPayment($order)
+    {
+        $endpoint = env('MOMO_API_ENDPOINT');
+        $partnerCode = env('MOMO_PARTNER_CODE');
+        $accessKey = env('MOMO_ACCESS_KEY');
+        $secretKey = env('MOMO_SECRET_KEY');
+
+        $orderInfo = "Thanh toán đơn hàng #" . $order->id;
+        $amount = $order->total_amount;
+        $orderId = $order->id . "_" . time();
+        $requestId = $orderId;
+        $extraData = "";
+
+        // Tạo chữ ký (Signature)
+        $rawHash = "accessKey=$accessKey&amount=$amount&extraData=$extraData&ipnUrl=" . env('MOMO_NOTIFY_URL') . "&orderId=$orderId&orderInfo=$orderInfo&partnerCode=$partnerCode&redirectUrl=" . env('MOMO_RETURN_URL') . "&requestId=$requestId&requestType=captureWallet";
+        $signature = hash_hmac("sha256", $rawHash, $secretKey);
+
+        $data = [
+            'partnerCode' => $partnerCode,
+            'requestId' => $requestId,
+            'amount' => $amount,
+            'orderId' => $orderId,
+            'orderInfo' => $orderInfo,
+            'redirectUrl' => env('MOMO_RETURN_URL'),
+            'ipnUrl' => env('MOMO_NOTIFY_URL'),
+            'extraData' => $extraData,
+            'requestType' => 'captureWallet',
+            'signature' => $signature,
+            'lang' => 'vi'
+        ];
+
+        $response = Http::post($endpoint, $data);
+        $result = $response->json();
+
+        if ($result && isset($result['payUrl'])) {
+            return response()->json([
+                'payment_url' => $result['payUrl'], // Trả link này về Frontend
+                'order_id' => $order->id
+            ]);
+        }
+
+        return response()->json(['message' => 'Lỗi khởi tạo MoMo'], 500);
+    }
 }

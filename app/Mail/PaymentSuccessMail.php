@@ -3,51 +3,34 @@
 namespace App\Mail;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
-use Illuminate\Mail\Mailables\Content;
-use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
-
 class PaymentSuccessMail extends Mailable
 {
     use Queueable, SerializesModels;
-
+    public $orderId;
+    public $totalAmount;
+    public $items;
     /**
      * Create a new message instance.
      */
-    public function __construct()
+    public function __construct($orderId, $totalAmount, $items)
     {
-        //
+        $this->orderId = $orderId;
+        $this->totalAmount = $totalAmount;
+        $this->items = $items;
     }
-
     /**
-     * Get the message envelope.
+     * Build the message.
      */
-    public function envelope(): Envelope
+    public function build()
     {
-        return new Envelope(
-            subject: 'Payment Success Mail',
-        );
-    }
-
-    /**
-     * Get the message content definition.
-     */
-    public function content(): Content
-    {
-        return new Content(
-            view: 'emails.payment.success',
-        );
-    }
-
-    /**
-     * Get the attachments for the message.
-     *
-     * @return array<int, \Illuminate\Mail\Mailables\Attachment>
-     */
-    public function attachments(): array
-    {
-        return [];
+        return $this->subject('Xác nhận đơn hàng #' . $this->orderId)
+                    ->view('emails.payment-success')
+                    ->with([
+                        'orderId' => $this->orderId,
+                        'totalAmount' => number_format($this->totalAmount, 0, ',', '.') . ' VNĐ',
+                        'items' => $this->items,
+                    ]);
     }
 }
