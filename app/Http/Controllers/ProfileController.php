@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -10,9 +10,9 @@ use Illuminate\Support\Facades\Validator;
 
 class ProfileController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $user = Auth::user();
+        $user = $request->user();
         
         if (!$user) {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
@@ -23,7 +23,7 @@ class ProfileController extends Controller
 
     public function update(Request $request)
     {
-        $user = Auth::user();
+        $user = $request->user();
 
         $validator = Validator::make($request->all(), [
             'UserName' => 'string|max:255',
@@ -46,7 +46,7 @@ class ProfileController extends Controller
 
     public function changePassword(Request $request)
     {
-        $user = Auth::user();
+        $user = $request->user();
 
         $validator = Validator::make($request->all(), [
             'currentPassword' => 'required',

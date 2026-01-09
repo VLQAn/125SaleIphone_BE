@@ -3,8 +3,9 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\ProductController;
 use Illuminate\Container\Attributes\Auth;
+use App\Http\Controllers\ProfileController;
 
 Route::post('register', [AuthController::class, 'register']);
 Route::post('login', [AuthController::class, 'login']);
@@ -50,8 +51,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('cart/remove/{id}', 'removeFromCart');
     });
 
-    // Profile Routes
-    Route::controller(\App\Http\Controllers\Api\ProfileController::class)->group(function () {
+    Route::middleware('auth:sanctum')
+    ->controller(ProfileController::class)
+    ->group(function () {
         Route::get('profile', 'index');
         Route::put('profile', 'update');
         Route::put('profile/change-password', 'changePassword');
