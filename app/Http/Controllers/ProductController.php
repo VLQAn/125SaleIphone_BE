@@ -26,85 +26,191 @@ class ProductController extends Controller
 
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'IdProduct'    => 'required|string|max:3|unique:products',
-            'IdCategory'   => 'required|string|max:2',
-            'NameProduct'  => 'required|string|max:100',
-            'IdProductVar' => 'required|string|max:3|unique:product_variants',
-            'Color'        => 'required|string',
-            'Price'        => 'required|numeric',
-            'Stock'        => 'required|integer',
-            'ImgPath'      => 'nullable|string|max:255',
-            'Decription'   => 'nullable|string|max:500',
+        $request->headers->set('Accept', 'application/json');
+
+        $request->validate([
+            'IdCategory' => 'required|string|size:2|exists:categories,IdCategory',
+            'NameProduct' => 'required|string|max:100',
+            'Decription' => 'required|string|max:255',
+
+            'variants' => 'required|array|min:1',
+            'variants.*.Color' => 'required|string|max:50',
+            'variants.*.Price' => 'required|integer|min:0',
+            'variants.*.ImgPath' => 'nullable|string|max:255',
+            'variants.*.Stock' => 'required|integer|min:0',
         ]);
 
-        if ($validator->fails()) return response()->json($validator->errors(), 400);
-
         DB::beginTransaction();
+
         try {
-            $product = Product::create($request->only(['IdProduct', 'IdCategory', 'NameProduct', 'Decription']));
-            
-            ProductVariant::create([
-                'IdProductVar' => $request->IdProductVar,
-                'IdProduct'    => $request->IdProduct,
-                'Color'        => $request->Color,
-                'Price'        => $request->Price,
-                'ImgPath'      => $request->ImgPath,
-                'Stock'        => $request->Stock,
+            /* =============================
+             * 1️⃣ TỰ SINH IdProduct
+             * ============================= */
+            $lastProductId = Product::max('IdProduct');
+            $nextProductNumber = $lastProductId ? intval($lastProductId) : 0;
+            $nextProductNumber++;
+
+            $newProductId = str_pad($nextProductNumber, 3, '0', STR_PAD_LEFT);
+
+            /* =============================
+             * 2️⃣ TẠO PRODUCT
+             * ============================= */
+            $product = Product::create([
+                'IdProduct' => $newProductId,
+                'IdCategory' => $request->IdCategory,
+                'NameProduct' => $request->NameProduct,
+                'Decription' => $request->Decription,
             ]);
 
+            /* =============================
+             * 3️⃣ TỰ SINH IdProductVar
+             * ============================= */
+            $lastVarId = ProductVariant::max('IdProductVar');
+            $nextVarNumber = $lastVarId ? intval($lastVarId) : 0;
+
+            foreach ($request->variants as $variant) {
+                $nextVarNumber++;
+
+                ProductVariant::create([
+                    'IdProductVar' => str_pad($nextVarNumber, 3, '0', STR_PAD_LEFT),
+                    'IdProduct' => $product->IdProduct,
+                    'Color' => $variant['Color'],
+                    'Price' => $variant['Price'],
+                    'ImgPath' => $variant['ImgPath'] ?? null,
+                    'Stock' => $variant['Stock'],
+                ]);
+            }
+
             DB::commit();
-            return response()->json(['message' => 'Thêm thành công', 'data' => $product->load('variants')], 201);
+
+            return response()->json([
+                'message' => 'Thêm sản phẩm thành công',
+                'data' => $product->load('variants')
+            ], 201);
+
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['error' => $e->getMessage()], 500);
+
+            return response()->json([
+                'message' => 'Lỗi khi thêm sản phẩm',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 
     public function update(Request $request, $id)
     {
-        $product = Product::where('IdProduct', $id)->first();
-        if (!$product) return response()->json(['message' => 'Không tìm thấy'], 404);
+        $request->headers->set('Accept', 'application/json');
 
-        $validator = Validator::make($request->all(), [
-            'IdCategory'   => 'string|max:2',
-            'NameProduct'  => 'string|max:100',
-            'Decription'   => 'nullable|string|max:500',
-            'Color'        => 'nullable|string',
-            'Price'        => 'nullable|numeric',
-            'ImgPath'      => 'nullable|string|max:255',
-            'Stock'        => 'nullable|integer',
+        $request->validate([
+            'IdProduct' => 'required|string|size:3|exists:products,IdProduct',
+            'IdCategory' => 'required|string|size:2|exists:categories,IdCategory',
+            'NameProduct' => 'required|string|max:100',
+            'Decription' => 'required|string|max:255',
+
+            'variants' => 'required|array|min:1',
+            'variants.*.IdProductVar' => 'nullable|string|size:3|exists:product_variants,IdProductVar',
+            'variants.*.Color' => 'required|string|max:50',
+            'variants.*.Price' => 'required|integer|min:0',
+            'variants.*.Stock' => 'required|integer|min:0',
+            'variants.*.ImgPath' => 'nullable|string|max:255',
         ]);
 
-        if ($validator->fails()) return response()->json($validator->errors(), 400);
+        /* =============================
+        * 1️⃣ CHECK ID PRODUCT KHỚP URL
+        * ============================= */
+        if ($request->IdProduct !== $id) {
+            return response()->json([
+                'message' => 'IdProduct không khớp với URL'
+            ], 422);
+        }
 
         DB::beginTransaction();
-        try {
-            $product->update($request->only(['IdCategory', 'NameProduct', 'Decription']));
 
-            if ($request->has('IdProductVar')) {
-                $variant = ProductVariant::where('IdProduct', $id)->first();
-                if ($variant) {
-                    $variant->update($request->only(['Color', 'Price', 'ImgPath', 'Stock']));
+        try {
+            /* =============================
+            * 2️⃣ UPDATE PRODUCT
+            * ============================= */
+            $product = Product::with('variants')->findOrFail($id);
+
+            $product->update([
+                'IdCategory' => $request->IdCategory,
+                'NameProduct' => $request->NameProduct,
+                'Decription' => $request->Decription,
+            ]);
+
+            /* =============================
+            * 3️⃣ VARIANT HIỆN CÓ
+            * ============================= */
+            $currentVariantIds = $product->variants->pluck('IdProductVar')->toArray();
+            $requestVariantIds = collect($request->variants)
+                ->pluck('IdProductVar')
+                ->filter()
+                ->toArray();
+
+            /* =============================
+            * 4️⃣ XOÁ VARIANT BỊ REMOVE TRÊN FE
+            * ============================= */
+            ProductVariant::where('IdProduct', $id)
+                ->whereNotIn('IdProductVar', $requestVariantIds)
+                ->delete();
+
+            /* =============================
+            * 5️⃣ UPDATE / CREATE VARIANT
+            * ============================= */
+            $lastVarId = ProductVariant::max('IdProductVar');
+            $nextVarNumber = $lastVarId ? intval($lastVarId) : 0;
+
+            foreach ($request->variants as $variant) {
+                if (!empty($variant['IdProductVar'])) {
+                    // UPDATE
+                    ProductVariant::where('IdProductVar', $variant['IdProductVar'])
+                        ->update([
+                            'Color' => $variant['Color'],
+                            'Price' => $variant['Price'],
+                            'Stock' => $variant['Stock'],
+                            'ImgPath' => $variant['ImgPath'] ?? null,
+                        ]);
+                } else {
+                    // CREATE NEW
+                    $nextVarNumber++;
+
+                    ProductVariant::create([
+                        'IdProductVar' => str_pad($nextVarNumber, 3, '0', STR_PAD_LEFT),
+                        'IdProduct' => $id,
+                        'Color' => $variant['Color'],
+                        'Price' => $variant['Price'],
+                        'Stock' => $variant['Stock'],
+                        'ImgPath' => $variant['ImgPath'] ?? null,
+                    ]);
                 }
             }
 
             DB::commit();
-            return response()->json(['message' => 'Cập nhật thành công', 'data' => $product->load('variants')]);
+
+            return response()->json([
+                'message' => 'Cập nhật sản phẩm thành công',
+                'data' => $product->fresh('variants')
+            ]);
+
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['error' => $e->getMessage()], 500);
+
+            return response()->json([
+                'message' => 'Lỗi khi cập nhật sản phẩm',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 
-    public function delete($id)
+    public function destroy($id)
     {
-        $product = Product::where('IdProduct', $id)->first();
-        if (!$product) return response()->json(['message' => 'Không tìm thấy'], 404);
+        $product = Product::findOrFail($id);
 
-        ProductVariant::where('IdProduct', $id)->delete();
-        $product->delete();
+        $product->delete(); // cascade xoá variant
 
-        return response()->json(['message' => 'Đã xóa sản phẩm và các biến thể liên quan']);
+        return response()->json([
+            'message' => 'Xoá sản phẩm thành công'
+        ]);
     }
 }

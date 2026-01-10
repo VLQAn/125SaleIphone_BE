@@ -31,7 +31,7 @@ Route::controller(ProductController::class)->group(function () {
     Route::post('products', 'store');
     Route::get('products/{id}', 'show');
     Route::put('products/{id}', 'update');
-    Route::delete('products/{id}', 'delete');
+    Route::delete('products/{id}', 'destroy');
 });
 
 // Protected Routes - Require Authentication
@@ -44,7 +44,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('orders/{id}', [\App\Http\Controllers\Api\OrderController::class, 'chiTiet']);
 
     // Cart Routes
-    Route::controller(\App\Http\Controllers\Api\CartController::class)->group(function () {
+    Route::controller(\App\Http\Controllers\CartController::class)->group(function () {
         Route::get('cart', 'index');
         Route::post('cart/add', 'addToCart');
         Route::put('cart/update', 'updateCart');
