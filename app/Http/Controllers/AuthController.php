@@ -80,7 +80,7 @@ class AuthController extends Controller
         $user->save();
 
         return response()->json([
-            'messege' => 'Email verified successfully',
+            'message' => 'Email verified successfully',
             'user' => new UserResource($user),
         ], 200);
     }

@@ -17,6 +17,13 @@ class ProductController extends Controller
         return response()->json($products, 200);
     }
 
+    public function show($id)
+    {
+        $product = Product::with('variants')->find($id);
+        if (!$product) return response()->json(['message' => 'Không tìm thấy'], 404);
+        return response()->json($product, 200);
+    }
+
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -27,6 +34,8 @@ class ProductController extends Controller
             'Color'        => 'required|string',
             'Price'        => 'required|numeric',
             'Stock'        => 'required|integer',
+            'ImgPath'      => 'nullable|string|max:255',
+            'Decription'   => 'nullable|string|max:500',
         ]);
 
         if ($validator->fails()) return response()->json($validator->errors(), 400);
@@ -57,6 +66,18 @@ class ProductController extends Controller
         $product = Product::find($id);
         if (!$product) return response()->json(['message' => 'Không tìm thấy'], 404);
 
+        $validator = Validator::make($request->all(), [
+            'IdCategory'   => 'string|max:2',
+            'NameProduct'  => 'string|max:100',
+            'Decription'   => 'nullable|string|max:500',
+            'Color'        => 'nullable|string',
+            'Price'        => 'nullable|numeric',
+            'ImgPath'      => 'nullable|string|max:255',
+            'Stock'        => 'nullable|integer',
+        ]);
+
+        if ($validator->fails()) return response()->json($validator->errors(), 400);
+
         DB::beginTransaction();
         try {
             $product->update($request->only(['IdCategory', 'NameProduct', 'Decription']));
@@ -76,7 +97,7 @@ class ProductController extends Controller
         }
     }
 
-    public function destroy($id)
+    public function delete($id)
     {
         $product = Product::find($id);
         if (!$product) return response()->json(['message' => 'Không tìm thấy'], 404);

@@ -62,7 +62,7 @@ class ProfileController extends Controller
         }
 
         try {
-            $user->Password = $request->newPassword;
+            $user->Password = Hash::make($request->newPassword);
             $user->save();
             
             return response()->json(['success' => true, 'message' => 'Đổi mật khẩu thành công']);

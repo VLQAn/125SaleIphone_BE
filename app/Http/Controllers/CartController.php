@@ -8,6 +8,7 @@ use App\Models\CartItem;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
 class CartController extends Controller
@@ -27,6 +28,13 @@ class CartController extends Controller
     }
     public function addToCart(Request $request)
     {
+        $validator = Validator::make($request->all(), [
+            'idSanPham' => 'required|string',
+            'soLuong'   => 'required|integer|min:1',
+        ]);
+
+        if ($validator->fails()) return response()->json($validator->errors(), 400);
+
         $userId = Auth::id();
         $idProduct = $request->idSanPham;
         $quantity = $request->soLuong;
@@ -61,8 +69,7 @@ class CartController extends Controller
         return response()->json(['message' => 'Đã cập nhật']);
     }
 
-    // 4. Xóa một món (XoaChiTiet)
-    public function removeProduct($id)
+    public function removeFromCart($id)
     {
         CartItem::where('IdCartItem', $id)->delete();
         return response()->json(['message' => 'Đã xóa']);

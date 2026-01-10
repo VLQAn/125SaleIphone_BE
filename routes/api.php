@@ -51,9 +51,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('cart/remove/{id}', 'removeFromCart');
     });
 
-    Route::middleware('auth:sanctum')
-    ->controller(ProfileController::class)
-    ->group(function () {
+    // Profile Routes
+    Route::controller(ProfileController::class)->group(function () {
         Route::get('profile', 'index');
         Route::put('profile', 'update');
         Route::put('profile/change-password', 'changePassword');
