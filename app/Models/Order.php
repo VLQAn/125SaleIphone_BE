@@ -19,7 +19,9 @@ class Order extends Model
         3 => 'Hoàn thành',
         4 => 'Đã huỷ'
     ];
-
+     public function address() {
+        return $this->hasOne(OrderAddress::class, 'IdOrder', 'IdOrder');
+    }
     public function items() {
         return $this->hasMany(OrderItem::class, 'IdOrder', 'IdOrder');
     }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Http;
 use App\Mail\PaymentSuccessMail;
 use App\Models\Order;
 use App\Models\CartItem;
@@ -12,48 +13,56 @@ use Illuminate\Support\Facades\Log;
 class PaymentController extends Controller
 {
     /**
-     * Callback xử lý kết quả thanh toán từ payment gateway (Giả lập)
+     * Callback xử lý kết quả thanh toán từ MoMo
      */
     public function callback(Request $request)
     {
-        $status = $request->input('status');
-        $orderId = $request->input('order_id');
-        $email = $request->input('email');
+        Log::info('MoMo Callback received:', $request->all());
+        
+        $resultCode = $request->input('resultCode');
+        $orderId = $request->input('orderId');
 
-        if ($status == 'success' && $orderId) {
-            // Tìm đơn hàng theo IdOrder (Primary Key là string)
-            $order = Order::where('IdOrder', $orderId)->first();
+        // resultCode = 0 là thành công
+        if ($resultCode == 0 && $orderId) {
+            // Tách order ID (format: IdOrder_timestamp)
+            $parts = explode('_', $orderId);
+            $actualOrderId = $parts[0];
+            
+            $order = Order::where('IdOrder', $actualOrderId)->first();
 
             if ($order) {
-                // Cập nhật trạng thái đơn hàng thành 0 (Đang xử lý) sau khi thanh toán thành công
-                // Giả sử Status 0 là trạng thái mặc định cho đơn hàng đã thanh toán/xác nhận
-                $order->update(['Status' => 0]);
+                // Cập nhật trạng thái: 1 = Đã thanh toán
+                $order->update(['Status' => 1]);
 
-                // Xóa giỏ hàng của user sau khi thanh toán thành công
-                CartItem::where('IdCart', $order->IdUser)->delete();
+                // Xóa giỏ hàng
+                if ($order->user) {
+                    CartItem::whereHas('cart', function ($query) use ($order) {
+                        $query->where('IdUser', $order->IdUser);
+                    })->delete();
+                }
 
-                // Gửi email xác nhận
-                if ($email) {
+                // Gửi email
+                if ($order->user && $order->user->email) {
                     try {
-                        // Lưu ý: Mailable PaymentSuccessMail có thể cần tham số, 
-                        // nhưng ở đây tôi dùng theo cấu trúc hiện tại của dự án
-                        Mail::to($email)->send(new PaymentSuccessMail());
+                        Mail::to($order->user->email)->send(new PaymentSuccessMail());
                     } catch (\Exception $e) {
-                        Log::error('Gửi mail thất bại trong callback: ' . $e->getMessage());
+                        Log::error('Gửi mail thất bại: ' . $e->getMessage());
                     }
                 }
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'Thanh toán thành công. Giỏ hàng đã được làm mới.',
-                    'order_id' => $orderId
+                    'message' => 'Thanh toán thành công',
+                    'order_id' => $actualOrderId
                 ]);
             }
         }
 
+        Log::warning('MoMo callback failed:', ['resultCode' => $resultCode, 'orderId' => $orderId]);
+        
         return response()->json([
             'success' => false,
-            'message' => 'Thanh toán thất bại hoặc đơn hàng không tồn tại.'
+            'message' => 'Thanh toán thất bại'
         ], 400);
     }
 
@@ -104,41 +113,61 @@ class PaymentController extends Controller
         $partnerCode = env('MOMO_PARTNER_CODE');
         $accessKey = env('MOMO_ACCESS_KEY');
         $secretKey = env('MOMO_SECRET_KEY');
+        $notifyUrl = env('MOMO_NOTIFY_URL');
+        $returnUrl = env('MOMO_RETURN_URL');
 
-        $orderInfo = "Thanh toán đơn hàng #" . $order->id;
-        $amount = $order->total_amount;
-        $orderId = $order->id . "_" . time();
-        $requestId = $orderId;
-        $extraData = "";
+        $orderInfo = "Thanh toan don hang " . $order->IdOrder;
+        $amount = (int)$order->total_amount;
+        $orderId = $order->IdOrder . "_" . time();
+        $requestId = time() . "";
+        $extraData = base64_encode($order->IdOrder);
+        $requestType = 'captureWallet';
 
-        // Tạo chữ ký (Signature)
-        $rawHash = "accessKey=$accessKey&amount=$amount&extraData=$extraData&ipnUrl=" . env('MOMO_NOTIFY_URL') . "&orderId=$orderId&orderInfo=$orderInfo&partnerCode=$partnerCode&redirectUrl=" . env('MOMO_RETURN_URL') . "&requestId=$requestId&requestType=captureWallet";
+        // Tạo signature theo format MoMo
+        $rawHash = "accessKey=" . $accessKey . "&amount=" . $amount . "&extraData=" . $extraData . "&ipnUrl=" . $notifyUrl . "&orderId=" . $orderId . "&orderInfo=" . $orderInfo . "&partnerCode=" . $partnerCode . "&redirectUrl=" . $returnUrl . "&requestId=" . $requestId . "&requestType=" . $requestType;
+        
+        Log::info('MoMo Raw Hash:', ['hash' => $rawHash]);
+        
         $signature = hash_hmac("sha256", $rawHash, $secretKey);
 
         $data = [
             'partnerCode' => $partnerCode,
+            'partnerName' => 'Sale iPhone 125',
             'requestId' => $requestId,
             'amount' => $amount,
             'orderId' => $orderId,
             'orderInfo' => $orderInfo,
-            'redirectUrl' => env('MOMO_RETURN_URL'),
-            'ipnUrl' => env('MOMO_NOTIFY_URL'),
+            'redirectUrl' => $returnUrl,
+            'ipnUrl' => $notifyUrl,
             'extraData' => $extraData,
-            'requestType' => 'captureWallet',
+            'requestType' => $requestType,
             'signature' => $signature,
-            'lang' => 'vi'
+            'lang' => 'vi',
+            'autoCapture' => true
         ];
 
-        $response = Http::post($endpoint, $data);
-        $result = $response->json();
+        Log::info('MoMo Request Data:', $data);
 
-        if ($result && isset($result['payUrl'])) {
-            return response()->json([
-                'payment_url' => $result['payUrl'], // Trả link này về Frontend
-                'order_id' => $order->id
-            ]);
+        try {
+            $response = Http::timeout(30)->post($endpoint, $data);
+            $result = $response->json();
+            
+            Log::info('MoMo Response:', $result);
+
+            if ($result && isset($result['payUrl'])) {
+                return response()->json([
+                    'success' => true,
+                    'payment_url' => $result['payUrl'],
+                    'order_id' => $order->IdOrder
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('MoMo Payment Error:', ['error' => $e->getMessage()]);
         }
 
-        return response()->json(['message' => 'Lỗi khởi tạo MoMo'], 500);
+        return response()->json([
+            'success' => false,
+            'message' => 'Lỗi khởi tạo MoMo'
+        ], 500);
     }
 }

@@ -23,6 +23,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 // Payment Callback (Public - for payment gateway callbacks)
 Route::any('/payment/callback', [\App\Http\Controllers\PaymentController::class, 'callback']);
+Route::any('/payment/vnpay-callback', [\App\Http\Controllers\PaymentController::class, 'vnpayCallback']);
 Route::post('/payment/send-mail', [\App\Http\Controllers\PaymentController::class, 'sendMail']);
 
 // Product Routes
@@ -37,14 +38,15 @@ Route::controller(ProductController::class)->group(function () {
 // Protected Routes - Require Authentication
 Route::middleware('auth:sanctum')->group(function () {
 
-    // Checkout & Order Routes
-    Route::post('/payment/checkout', [\App\Http\Controllers\Api\OrderController::class, 'store']);
-    Route::get('orders', [\App\Http\Controllers\Api\OrderController::class, 'index']);
-    Route::post('orders/cancel/{id}', [\App\Http\Controllers\Api\OrderController::class, 'huyDonHang']);
-    Route::get('orders/{id}', [\App\Http\Controllers\Api\OrderController::class, 'chiTiet']);
+     Route::controller(\App\Http\Controllers\OrderController::class)->group(function () {
+        Route::post('checkout', 'checkout');
+        Route::get('orders', 'index');
+        Route::get('orders/{id}', 'show');
+        Route::put('orders/{id}/cancel', 'cancel');
+    });
 
     // Cart Routes
-    Route::controller(\App\Http\Controllers\Api\CartController::class)->group(function () {
+    Route::controller(\App\Http\Controllers\CartController::class)->group(function () {
         Route::get('cart', 'index');
         Route::post('cart/add', 'addToCart');
         Route::put('cart/update', 'updateCart');

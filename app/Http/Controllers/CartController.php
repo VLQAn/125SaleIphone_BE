@@ -30,17 +30,17 @@ class CartController extends Controller
         return $cart;
     }
 // lay san pham yrong gio hang
-    public function index()
-    {
-        $cart = $this->getCurrentCart();
-        $cart->load('items.product');
+   public function index()
+{
+    $cart = $this->getCurrentCart();
+    $cart->load(['items.product', 'items.variant']); // ← Thêm variant
 
-        return response()->json([
-            'success' => true,
-            'cart_id' => $cart->IdCart,
-            'data'    => $cart->items,
-        ], 200);
-    }
+    return response()->json([
+        'success' => true,
+        'cart_id' => $cart->IdCart,
+        'data'    => $cart->items,
+    ], 200);
+}
 // them san pham vao gio hang
     public function addToCart(AddToCartRequest $request)
     {
