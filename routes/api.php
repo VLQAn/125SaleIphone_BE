@@ -32,7 +32,7 @@ Route::controller(ProductController::class)->group(function () {
     Route::post('products', 'store');
     Route::get('products/{id}', 'show');
     Route::put('products/{id}', 'update');
-    Route::delete('products/{id}', 'delete');
+    Route::delete('products/{id}', 'destroy');
 });
 
 // Protected Routes - Require Authentication
