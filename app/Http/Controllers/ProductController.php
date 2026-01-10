@@ -63,7 +63,7 @@ class ProductController extends Controller
 
     public function update(Request $request, $id)
     {
-        $product = Product::find($id);
+        $product = Product::where('IdProduct', $id)->first();
         if (!$product) return response()->json(['message' => 'Không tìm thấy'], 404);
 
         $validator = Validator::make($request->all(), [
@@ -99,7 +99,7 @@ class ProductController extends Controller
 
     public function delete($id)
     {
-        $product = Product::find($id);
+        $product = Product::where('IdProduct', $id)->first();
         if (!$product) return response()->json(['message' => 'Không tìm thấy'], 404);
 
         ProductVariant::where('IdProduct', $id)->delete();
