@@ -1,84 +1,127 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
+use App\Http\Requests\Cart\AddToCartRequest;
+use App\Http\Requests\Cart\UpdateCartRequest;
 use App\Models\Cart;
-use App\Models\CartItem;
-use App\Models\Product;
-use Illuminate\Http\Request;
+use App\Models\CartItem;    
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
 class CartController extends Controller
 {
+    // xem gio hang (tao moi) gio hang 
+    private function getCurrentCart(): Cart
+    {
+        $user = Auth::user();
+        $cart = Cart::where('IdUser', $user->IdUser)->first();
+        // tao id gio hang
+        if (!$cart) {
+            $lastCart = Cart::orderBy('IdCart', 'desc')->first();
+            $number = $lastCart ? intval(substr($lastCart->IdCart, 1)) + 1 : 1;
+            $newId = 'C' . str_pad($number, 4, '0', STR_PAD_LEFT);
+            $cart = Cart::create([
+                'IdCart' => $newId,
+                'IdUser' => $user->IdUser,
+            ]);
+        }
+
+        return $cart;
+    }
+// lay san pham yrong gio hang
     public function index()
     {
-        $userId = Auth::id(); 
-        $cartItems = CartItem::where('IdCart', $userId)
-            ->with('product')
-            ->get();
-        $goiYSanPhams = Product::inRandomOrder()->take(4)->get();
+        $cart = $this->getCurrentCart();
+        $cart->load('items.product');
 
         return response()->json([
-            'ChiTietGioHangList' => $cartItems,
-            'GoiYSanPhams' => $goiYSanPhams
-        ]);
+            'success' => true,
+            'cart_id' => $cart->IdCart,
+            'data'    => $cart->items,
+        ], 200);
     }
-    public function addToCart(Request $request)
+// them san pham vao gio hang
+    public function addToCart(AddToCartRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'idSanPham' => 'required|string',
-            'soLuong'   => 'required|integer|min:1',
-        ]);
+        $data = $request->validated();
+        $cart = $this->getCurrentCart();
+// kiem tra san pham da co trong gio hang chua
+        $item = $cart->items()
+            ->where('IdProduct', $data['IdProduct'])
+            ->first();
+        // cap nhat so luong neu san pham da co
+        if ($item) {
+            $item->increment('Quantity', $data['Quantity']);
+        } else {
+            $lastItem = CartItem::orderBy('IdCartItem', 'desc')->first();
+            $number = $lastItem ? intval(substr($lastItem->IdCartItem, 1)) + 1 : 1;
+            $newIdItem = 'I' . str_pad($number, 4, '0', STR_PAD_LEFT);
 
-        if ($validator->fails()) return response()->json($validator->errors(), 400);
+            $cart->items()->create([
+                'IdCartItem' => $newIdItem,
+                'IdProduct'  => $data['IdProduct'],
+                'Quantity'   => $data['Quantity'],
+            ]);
+        }
 
-        $userId = Auth::id();
-        $idProduct = $request->idSanPham;
-        $quantity = $request->soLuong;
-        $item = CartItem::where('IdCart', $userId)
-            ->where('IdProduct', $idProduct)
+        return response()->json([
+            'success' => true,
+            'message' => 'Đã thêm sản phẩm vào giỏ hàng',
+        ], 201);
+    }
+
+    public function updateCart(UpdateCartRequest $request)
+    {
+        $data = $request->validated();
+        $cart = $this->getCurrentCart();
+        $item = $cart->items()
+            ->where('IdCartItem', $data['IdCartItem'])
             ->first();
 
-        if ($item) {
-            $item->update([
-                'Quantity' => $item->Quantity + $quantity
-            ]);
-        } else {
-            CartItem::create([
-                'IdCartItem' => Str::upper(Str::random(5)),
-                'IdCart' => $userId,
-                'IdProduct' => $idProduct,
-                'Quantity' => $quantity
-            ]);
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sản phẩm không tồn tại trong giỏ hàng của bạn',
+            ], 404);
         }
 
-        return response()->json(['message' => 'Thành công'], 200);
+        $item->update(['Quantity' => $data['Quantity']]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cập nhật số lượng thành công',
+        ], 200);
     }
-
-    public function updateCart(Request $request)
+// xoa san pham khoi gio hang
+    public function removeFromCart(string $id)
     {
-        $updates = $request->SoLuongCapNhat;
+        $cart = $this->getCurrentCart();
+        $item = $cart->items()->where('IdCartItem', $id)->first();
 
-        foreach ($updates as $id => $quantity) {
-            CartItem::where('IdCartItem', $id)->update(['Quantity' => $quantity]);
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bạn không có quyền xóa sản phẩm này',
+            ], 403);
         }
 
-        return response()->json(['message' => 'Đã cập nhật']);
-    }
+        $item->delete();
 
-    public function removeFromCart($id)
-    {
-        CartItem::where('IdCartItem', $id)->delete();
-        return response()->json(['message' => 'Đã xóa']);
+        return response()->json([
+            'success' => true,
+            'message' => 'Đã xóa sản phẩm khỏi giỏ hàng',
+        ], 200);
     }
-
+// xoa het gio hang
     public function clearCart()
     {
-        $userId = Auth::id();
-        CartItem::where('IdCart', $userId)->delete();
-        return response()->json(['message' => 'Giỏ hàng đã trống']);
+        $cart = $this->getCurrentCart();
+        $cart->items()->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Giỏ hàng của bạn đã được làm trống',
+        ], 200);
     }
 }
