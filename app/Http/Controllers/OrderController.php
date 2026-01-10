@@ -32,6 +32,15 @@ class OrderController extends Controller
             'email' => 'nullable|email'
         ]);
 
+        $user = Auth::user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthenticated'
+            ], 401);
+        }
+
         $userId = Auth::id();
 
         // Lấy các sản phẩm trong giỏ hàng
@@ -54,7 +63,7 @@ class OrderController extends Controller
             $totalPrice = 0;
             foreach ($cartItems as $item) {
                 // Lấy giá từ variant đầu tiên hoặc từ product
-                $variant = $item->product->variants->first();
+                $variant = ProductVariant::find($item->IdProductVar);
                 $price = $variant ? $variant->Price : 0;
                 $totalPrice += $price * $item->Quantity;
             }
