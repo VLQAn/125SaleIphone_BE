@@ -164,4 +164,27 @@ class AuthController extends Controller
             'message' => 'Logout successful',
         ], 200);
     }
+
+    public function getUserById($idUser)
+    {
+        $user = User::find($idUser);
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'User not found',
+            ], 404);
+        }
+
+        return response()->json([
+            'message' => 'User found',
+            'user' => [
+                'IdUser' => $user->IdUser,
+                'UserName' => $user->UserName,
+                'Email' => $user->Email,
+                'Phone' => $user->Phone ?? null,
+                'Address' => $user->Address ?? null,
+            ]
+        ], 200);
+    }
+
 }
