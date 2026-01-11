@@ -7,7 +7,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
 {
@@ -98,109 +98,56 @@ class ProductController extends Controller
         }
     }
 
-    public function update(Request $request, $id)
+    public function edit($id)
     {
-        $request->headers->set('Accept', 'application/json');
+        $product = Product::with('variants')->findOrFail($id);
+        return response()->json($product);
+    }
 
+    // Cập nhật sản phẩm
+    public function updateVariant(Request $request, $idProduct, $idVariant)
+    {
+        // Validate dữ liệu
         $request->validate([
-            'IdProduct' => 'required|string|size:3|exists:products,IdProduct',
-            'IdCategory' => 'required|string|size:2|exists:categories,IdCategory',
-            'NameProduct' => 'required|string|max:100',
-            'Decription' => 'required|string|max:255',
-
-            'variants' => 'required|array|min:1',
-            'variants.*.IdProductVar' => 'nullable|string|size:3|exists:product_variants,IdProductVar',
-            'variants.*.Color' => 'required|string|max:50',
-            'variants.*.Price' => 'required|integer|min:0',
-            'variants.*.Stock' => 'required|integer|min:0',
-            'variants.*.ImgPath' => 'nullable|string|max:255',
+            'Decription' => 'nullable|string|max:255',
+            'Price' => 'required|integer|min:0',
+            'Stock' => 'required|integer|min:0',
+            'ImgPath' => 'nullable|url|max:255', 
         ]);
 
-        /* =============================
-        * 1️⃣ CHECK ID PRODUCT KHỚP URL
-        * ============================= */
-        if ($request->IdProduct !== $id) {
-            return response()->json([
-                'message' => 'IdProduct không khớp với URL'
-            ], 422);
-        }
+        DB::transaction(function() use ($request, $idProduct, $idVariant) {
 
-        DB::beginTransaction();
+            // Kiểm tra sản phẩm có tồn tại
+            $product = Product::findOrFail($idProduct);
 
-        try {
-            /* =============================
-            * 2️⃣ UPDATE PRODUCT
-            * ============================= */
-            $product = Product::with('variants')->findOrFail($id);
+            // Lấy variant
+            $variant = ProductVariant::where('IdProduct', $idProduct)
+                ->where('IdProductVar', $idVariant)
+                ->firstOrFail();
 
-            $product->update([
-                'IdCategory' => $request->IdCategory,
-                'NameProduct' => $request->NameProduct,
-                'Decription' => $request->Decription,
-            ]);
+            // Cập nhật giá, số lượng, mô tả
+            $variant->Price = $request->Price;
+            $variant->Stock = $request->Stock;
 
-            /* =============================
-            * 3️⃣ VARIANT HIỆN CÓ
-            * ============================= */
-            $currentVariantIds = $product->variants->pluck('IdProductVar')->toArray();
-            $requestVariantIds = collect($request->variants)
-                ->pluck('IdProductVar')
-                ->filter()
-                ->toArray();
+            // Cập nhật mô tả sản phẩm (nếu muốn lưu chung)
+            $product->Decription = $request->Decription ?? $product->Decription;
+            $product->save();
 
-            /* =============================
-            * 4️⃣ XOÁ VARIANT BỊ REMOVE TRÊN FE
-            * ============================= */
-            ProductVariant::where('IdProduct', $id)
-                ->whereNotIn('IdProductVar', $requestVariantIds)
-                ->delete();
-
-            /* =============================
-            * 5️⃣ UPDATE / CREATE VARIANT
-            * ============================= */
-            $lastVarId = ProductVariant::max('IdProductVar');
-            $nextVarNumber = $lastVarId ? intval($lastVarId) : 0;
-
-            foreach ($request->variants as $variant) {
-                if (!empty($variant['IdProductVar'])) {
-                    // UPDATE
-                    ProductVariant::where('IdProductVar', $variant['IdProductVar'])
-                        ->update([
-                            'Color' => $variant['Color'],
-                            'Price' => $variant['Price'],
-                            'Stock' => $variant['Stock'],
-                            'ImgPath' => $variant['ImgPath'] ?? null,
-                        ]);
-                } else {
-                    // CREATE NEW
-                    $nextVarNumber++;
-
-                    ProductVariant::create([
-                        'IdProductVar' => str_pad($nextVarNumber, 3, '0', STR_PAD_LEFT),
-                        'IdProduct' => $id,
-                        'Color' => $variant['Color'],
-                        'Price' => $variant['Price'],
-                        'Stock' => $variant['Stock'],
-                        'ImgPath' => $variant['ImgPath'] ?? null,
-                    ]);
+            // Nếu upload ảnh mới
+            if ($request->hasFile('ImgPath')) {
+                // Xóa ảnh cũ nếu có
+                if ($variant->ImgPath && Storage::exists($variant->ImgPath)) {
+                    Storage::delete($variant->ImgPath);
                 }
+
+                $path = $request->file('ImgPath')->store('product_images', 'public');
+                $variant->ImgPath = $path;
             }
 
-            DB::commit();
+            $variant->save();
+        });
 
-            return response()->json([
-                'message' => 'Cập nhật sản phẩm thành công',
-                'data' => $product->fresh('variants')
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            return response()->json([
-                'message' => 'Lỗi khi cập nhật sản phẩm',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+        return response()->json(['message' => 'Cập nhật variant thành công']);
     }
 
     public function destroy($id)
