@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use App\Models\Roles;
 
 class User extends Authenticatable
 {
@@ -34,6 +35,11 @@ class User extends Authenticatable
         'Code',
         'CodeExpiresAt',
     ];
+
+    public function role()
+    {
+        return $this->belongsTo(Roles::class, 'Role', 'IdRole');
+    }
 
     /**
      * The attributes that should be hidden for serialization.
