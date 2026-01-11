@@ -44,7 +44,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('orders/{id}', 'show');
         Route::put('orders/{id}/cancel', 'cancel');
     });
-
+    Route::middleware('auth:sanctum')->group(function () {
+    // Order routes
+    Route::controller(\App\Http\Controllers\OrderController::class)->group(function () {
+        Route::post('checkout', 'checkout');
+        Route::get('orders', 'index');
+        Route::get('orders/{id}', 'show');
+        Route::put('orders/{id}/cancel', 'cancel');
+    });
+});
     // Cart Routes
     Route::controller(\App\Http\Controllers\CartController::class)->group(function () {
         Route::get('cart', 'index');
