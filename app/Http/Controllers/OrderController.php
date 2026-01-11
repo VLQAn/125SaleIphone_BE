@@ -6,27 +6,23 @@ use Illuminate\Http\Request;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderAddress;
-use App\Http\Controllers\PaymentController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class OrderController extends Controller
 {
-    public function checkout(Request $request) {
-    $validated = $request->validate([
-        'fullname' => 'required|string',
-        'phone' => 'required|string',
-        'address' => 'required|string',
-        'payment_method' => 'required|string',
-        'items' => 'required|array',
-        'items.*.IdProduct' => 'required|integer',
-        'items.*.Quantity' => 'required|integer',
-        'items.*.Price' => 'required|numeric',
-    ]);
-
-    // Xử lý đơn hàng
-
-
+    public function checkout(Request $request)
+    {
+        $validated = $request->validate([
+            'fullname' => 'required|string|max:255',
+            'phone' => 'required|string|max:20',
+            'address' => 'required|string',
+            'payment_method' => 'required|in:COD,BANK,MOMO',
+            'items' => 'required|array|min:1',
+            'items.*.IdProduct' => 'required|string',
+            'items.*.Quantity' => 'required|integer|min:1',
+            'items.*.Price' => 'required|numeric|min:0',
+        ]);
 
         $user = Auth::user();
 
@@ -48,7 +44,7 @@ class OrderController extends Controller
                 'IdOrder' => $orderId,
                 'IdUser' => $user->IdUser,
                 'TotalPrice' => $totalPrice,
-                'Status' => 0, // 0 = Đang xử lý
+                'Status' => 0,
             ]);
 
             // Tạo order address
@@ -87,7 +83,6 @@ class OrderController extends Controller
 
             DB::commit();
 
-            // Xử lý payment method
             $responseData = [
                 'order_id' => $orderId,
                 'total_amount' => $totalPrice,
@@ -95,10 +90,8 @@ class OrderController extends Controller
             ];
 
             if ($validated['payment_method'] === 'BANK') {
-                // TODO: Tích hợp với cổng thanh toán ngân hàng
                 $responseData['payment_url'] = 'https://bank-payment-gateway.com/...';
             } elseif ($validated['payment_method'] === 'MOMO') {
-                // TODO: Tích hợp với MoMo API
                 $responseData['payment_url'] = 'https://momo.vn/payment/...';
             }
 
@@ -122,11 +115,10 @@ class OrderController extends Controller
     {
         $user = Auth::user();
         $orders = Order::where('IdUser', $user->IdUser)
-            ->with(['items.product'])
+            ->with(['items.product', 'address']) // ← ✅ THÊM 'address'
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Map status sang text
         $orders->transform(function ($order) {
             $order->status_text = Order::STATUS_MAP[$order->Status] ?? 'Không xác định';
             return $order;
@@ -144,7 +136,7 @@ class OrderController extends Controller
         $user = Auth::user();
         $order = Order::where('IdOrder', $id)
             ->where('IdUser', $user->IdUser)
-            ->with(['items.product'])
+            ->with(['items.product', 'address']) // ← ✅ THÊM 'address'
             ->first();
 
         if (!$order) {
@@ -154,9 +146,6 @@ class OrderController extends Controller
             ], 404);
         }
 
-        // Lấy địa chỉ giao hàng
-        $address = OrderAddress::where('IdOrder', $id)->first();
-        $order->address = $address;
         $order->status_text = Order::STATUS_MAP[$order->Status] ?? 'Không xác định';
 
         return response()->json([
@@ -180,7 +169,6 @@ class OrderController extends Controller
             ], 404);
         }
 
-        // Chỉ cho phép hủy đơn đang xử lý hoặc đang giao
         if ($order->Status > 2) {
             return response()->json([
                 'success' => false,
@@ -188,7 +176,7 @@ class OrderController extends Controller
             ], 400);
         }
 
-        $order->update(['Status' => 4]); // 4 = Đã huỷ
+        $order->update(['Status' => 4]);
 
         return response()->json([
             'success' => true,

@@ -17,8 +17,12 @@ return new class extends Migration
 
             $table->string('IdOrder');
             $table->string('IdProduct');
+
             $table->integer('Quantity');
-            $table->decimal('UnitPrice', 10, 2); // giá từng sản phẩm
+
+            // ✅ GIÁ TIỀN LƯU KIỂU INT (VND)
+            $table->integer('UnitPrice');
+
             $table->timestamps();
         });
     }

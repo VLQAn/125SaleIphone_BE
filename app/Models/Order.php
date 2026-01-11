@@ -12,6 +12,7 @@ class Order extends Model
     protected $keyType = 'string';
 
     protected $fillable = ['IdOrder', 'IdUser', 'TotalPrice', 'Status'];
+    
     const STATUS_MAP = [
         0 => 'Đang xử lý',
         1 => 'Đang giao hàng',
@@ -19,10 +20,16 @@ class Order extends Model
         3 => 'Hoàn thành',
         4 => 'Đã huỷ'
     ];
-     public function address() {
-        return $this->hasOne(OrderAddress::class, 'IdOrder', 'IdOrder');
-    }
+
     public function items() {
         return $this->hasMany(OrderItem::class, 'IdOrder', 'IdOrder');
+    }
+
+    public function address() {
+        return $this->hasOne(OrderAddress::class, 'IdOrder', 'IdOrder');
+    }
+
+    public function user() {
+        return $this->belongsTo(User::class, 'IdUser', 'IdUser');
     }
 }
