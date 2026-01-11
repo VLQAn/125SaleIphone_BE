@@ -16,8 +16,10 @@ Route::post('resend-code', [AuthController::class, 'resendCode']);
 Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::get('user', [AuthController::class, 'getProfile']);
     Route::post('logout', [AuthController::class, 'logout']);
+    Route::get('users/{idUser}', [AuthController::class, 'getUserById']);
+    Route::put('users/{idUser}', [AuthController::class, 'updateUser']);
 });
-Route::get('users/{idUser}', [AuthController::class, 'getUserById']);
+
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();

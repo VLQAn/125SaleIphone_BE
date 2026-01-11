@@ -187,4 +187,23 @@ class AuthController extends Controller
         ], 200);
     }
 
+    public function updateUser(Request $request, $idUser)
+    {
+        $user = User::find($idUser);
+        if (!$user) {
+            return response()->json(['message' => 'User not found'], 404);
+        }
+
+        // Chỉ cho phép cập nhật các trường mong muốn
+        $user->UserName = $request->input('UserName', $user->UserName);
+        $user->Phone = $request->input('Phone', $user->Phone);
+        $user->Address = $request->input('Address', $user->Address);
+
+        $user->save();
+
+        return response()->json([
+            'message' => 'User updated successfully',
+            'user' => $user,
+        ], 200);
+    }
 }
