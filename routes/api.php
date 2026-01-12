@@ -7,6 +7,7 @@ use App\Http\Controllers\ProductController;
 use Illuminate\Container\Attributes\Auth;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\Auth\GoogleController;
 
 Route::post('register', [AuthController::class, 'register']);
 Route::post('login', [AuthController::class, 'login']);
@@ -16,7 +17,10 @@ Route::post('resend-code', [AuthController::class, 'resendCode']);
 Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::get('user', [AuthController::class, 'getProfile']);
     Route::post('logout', [AuthController::class, 'logout']);
+    Route::get('users/{idUser}', [AuthController::class, 'getUserById']);
+    Route::put('users/{idUser}', [AuthController::class, 'updateUser']);
 });
+
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
@@ -83,4 +87,8 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::get('/users', [UserController::class, 'index']);
 Route::put('users/{idUser}/role', [UserController::class, 'updateRole']);
 
+// Google OAuth Routes
+Route::get('/auth/google', [GoogleController::class, 'redirect'])
+    ->name('google.login');
 
+Route::get('/auth/google/callback', [GoogleController::class, 'callback']);
