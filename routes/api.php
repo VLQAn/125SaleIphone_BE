@@ -40,21 +40,27 @@ Route::controller(ProductController::class)->group(function () {
 // Protected Routes - Require Authentication
 Route::middleware('auth:sanctum')->group(function () {
 
-     Route::controller(\App\Http\Controllers\OrderController::class)->group(function () {
-        Route::post('checkout', 'checkout');
-        Route::get('orders', 'index');
-        Route::get('orders/{id}', 'show');
-        Route::put('orders/{id}/cancel', 'cancel');
-    });
-    Route::middleware('auth:sanctum')->group(function () {
-    // Order routes
     Route::controller(\App\Http\Controllers\OrderController::class)->group(function () {
         Route::post('checkout', 'checkout');
         Route::get('orders', 'index');
         Route::get('orders/{id}', 'show');
         Route::put('orders/{id}/cancel', 'cancel');
     });
-});
+    Route::middleware('auth:sanctum')->group(function () {
+        // Order routes
+        // Order routes
+        Route::controller(\App\Http\Controllers\OrderController::class)->group(function () {
+            Route::post('checkout', 'checkout');
+            Route::get('orders', 'index');       // Lấy đơn hàng của user đang login
+
+            // [NEW] Thêm 2 dòng này
+            Route::get('admin/orders', 'adminIndex');      // Admin lấy danh sách
+            Route::put('orders/{id}/status', 'updateStatus'); // Admin cập nhật trạng thái
+
+            Route::get('orders/{id}', 'show');
+            Route::put('orders/{id}/cancel', 'cancel');
+        });
+    });
     // Cart Routes
     Route::controller(\App\Http\Controllers\CartController::class)->group(function () {
         Route::get('cart', 'index');
@@ -70,6 +76,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('profile/change-password', 'changePassword');
     });
 });
+
+
 
 // Manager User
 Route::get('/users', [UserController::class, 'index']);

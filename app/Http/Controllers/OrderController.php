@@ -183,4 +183,44 @@ class OrderController extends Controller
             'message' => 'Đã hủy đơn hàng',
         ]);
     }
+
+    // [NEW] API Lấy toàn bộ đơn hàng cho Admin
+    public function adminIndex()
+    {
+        // Lấy tất cả đơn hàng, kèm thông tin user và địa chỉ, sắp xếp mới nhất
+        $orders = Order::with(['items.product', 'address', 'user'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $orders->transform(function ($order) {
+            $order->status_text = Order::STATUS_MAP[$order->Status] ?? 'Không xác định';
+            return $order;
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $orders,
+        ]);
+    }
+
+    // [NEW] API Cập nhật trạng thái đơn hàng (0: Xử lý, 1: Đang giao, 2: Đã giao...)
+    public function updateStatus(Request $request, $id)
+    {
+        $order = Order::where('IdOrder', $id)->first();
+
+        if (!$order) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy đơn hàng',
+            ], 404);
+        }
+
+        $order->update(['Status' => $request->status]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cập nhật trạng thái thành công',
+            'data' => $order
+        ]);
+    }
 }
